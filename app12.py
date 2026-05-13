@@ -5,7 +5,7 @@ import random
 # アプリの設定
 st.set_page_config(page_title="JAPAN GUESSER 100", layout="centered")
 st.title("🗺️ 【位置当てゲーム：JAPAN GUESSER 100】")
-st.caption("登録された大量のデータからランダムに出題！全問正解を目指せ！")
+st.caption("ダイレクト画像リンク対応版。全問正解を目指してピンを刺せ！")
 
 # 1. CSVデータファイルの読み込み
 @st.cache_data
@@ -28,17 +28,15 @@ if "game_started" not in st.session_state:
     st.session_state.score = 0
     st.session_state.answered = False
     st.session_state.feedback = ""
-    st.session_state.total_questions_to_play = 100  # ここでプレイする総問題数を指定可能
+    st.session_state.total_questions_to_play = 100
 
 # 3. ゲーム開始・リセット関数
 def start_new_marathon():
     if not all_questions:
         return
-    # CSVにある全ての問題をシャッフル
     shuffled = all_questions.copy()
     random.shuffle(shuffled)
     
-    # 指定した問題数（例：100問）をプールにセット（CSVの総数が足りない場合は全数）
     limit = min(st.session_state.total_questions_to_play, len(shuffled))
     st.session_state.quiz_pool = shuffled[:limit]
     
@@ -53,7 +51,6 @@ if not st.session_state.game_started:
     st.subheader("🏁 ジオゲッサー・日本百人組手")
     st.write(f"現在、データベースには **{len(all_questions)}問** のスポットが登録されています。")
     
-    # プレイ問数の選択（最大100問など）
     max_available = min(100, len(all_questions)) if all_questions else 10
     st.session_state.total_questions_to_play = st.slider("何問挑戦しますか？", 5, max_available, min(100, max_available))
     
@@ -62,7 +59,6 @@ if not st.session_state.game_started:
         st.rerun()
 
 else:
-    # 進行度の計算
     pool = st.session_state.quiz_pool
     idx = st.session_state.current_index
     total_q = len(pool)
@@ -77,12 +73,11 @@ else:
         st.session_state.game_started = False
         st.rerun()
 
-    # ゲームオーバー（全問終了）判定
+    # 全問終了判定
     if idx >= total_q:
         max_score = total_q * 100
         st.success(f"🎉 完走おめでとうございます！最終スコア: {st.session_state.score} / {max_score} 点")
         
-        # ランク評価
         accuracy = (st.session_state.score / max_score) * 100
         if accuracy == 100:
             st.title("👑 ランク：日本地理の神")
@@ -97,21 +92,23 @@ else:
             start_new_marathon()
             st.rerun()
     else:
-        # 現在の問題データを取得
         q = pool[idx]
         
         st.subheader(f"📍 第 {idx + 1} 問目")
         st.info(f"💡 {q['hint']}")
         
-        # 画像の表示（URLエラー対策付き）
-        try:
-            st.image(q["image_url"], caption="この場所はどこ？", use_container_width=True)
-        except:
-            st.warning("⚠️ 画像の読み込みに失敗しました。ヒントと選択肢から推理してください。")
+        # 画像の表示（高セキュリティ環境用の読み込みエラー対策付き）
+        if pd.notna(q["image_url"]) and str(q["image_url"]).startswith("http"):
+            try:
+                st.image(q["image_url"], caption="この場所はどこ？", use_container_width=True)
+            except Exception as img_err:
+                st.error("⚠️ 外部画像サーバーとの通信に失敗しました。下のヒントから推理してください。")
+                st.caption(f"エラー理由: {img_err}")
+        else:
+            st.warning("⚠️ 有効な画像URLが登録されていません。")
         
-        # 選択肢をリスト化
+        # 選択肢の構築
         choices = [q["choice1"], q["choice2"], q["choice3"], q["choice4"], q["choice5"]]
-        # 空白データを排除
         choices = [c for c in choices if pd.notna(c)]
         
         # 回答フォーム
