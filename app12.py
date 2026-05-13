@@ -5,7 +5,7 @@ import random
 # アプリの設定
 st.set_page_config(page_title="JAPAN GUESSER 100", layout="centered")
 st.title("🗺️ 【位置当てゲーム：JAPAN GUESSER 100】")
-st.caption("ダイレクト画像リンク対応版。全問正解を目指してピンを刺せ！")
+st.caption("URLチェック強化版。全問正解を目指してピンを刺せ！")
 
 # 1. CSVデータファイルの読み込み
 @st.cache_data
@@ -97,15 +97,19 @@ else:
         st.subheader(f"📍 第 {idx + 1} 問目")
         st.info(f"💡 {q['hint']}")
         
-        # 画像の表示（高セキュリティ環境用の読み込みエラー対策付き）
-        if pd.notna(q["image_url"]) and str(q["image_url"]).startswith("http"):
+        # --- 画像判定ロジックの強化（余白削除のクレンジング追加） ---
+        raw_url = str(q.get("image_url", "")).strip()
+        
+        if pd.notna(q.get("image_url")) and (raw_url.startswith("http://") or raw_url.startswith("https://")):
             try:
-                st.image(q["image_url"], caption="この場所はどこ？", use_container_width=True)
+                st.image(raw_url, caption="この場所はどこ？", use_container_width=True)
             except Exception as img_err:
-                st.error("⚠️ 外部画像サーバーとの通信に失敗しました。下のヒントから推理してください。")
-                st.caption(f"エラー理由: {img_err}")
+                st.error("⚠️ 画像の描写処理でエラーが発生しました。テキストヒントから推測してください。")
+                st.caption(f"システム理由: {img_err}")
         else:
-            st.warning("⚠️ 有効な画像URLが登録されていません。")
+            # URLが壊れている、または認識されなかった場合のフォールバック（強制停止を防ぐ）
+            st.warning("⚠️ CSVに有効なインターネット画像URL（https://...）が登録されていません。テキストヒントのみで勝負です！")
+            st.caption(f"登録されていた値: {raw_url}")
         
         # 選択肢の構築
         choices = [q["choice1"], q["choice2"], q["choice3"], q["choice4"], q["choice5"]]
